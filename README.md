@@ -53,11 +53,14 @@ the absolute path to the directory where you want to store your buffer, ensure t
 instead of selecting all the paths you want to subscribe to inside the plugin config, this is the path to your filterPaths.json file see file in repo for an example.
 
 To select all paths make your filterPaths.json represent the below
+
 ```
 [{
       path: '*', // Get all paths
       period: 5000 // Every 5000ms
     }]
-    ```
+```
+
+
 ### Frequency of batched write to Influxdb2.0 in ms
 how often you want to send the batch writes to influx
