@@ -97,8 +97,10 @@ module.exports = function (app) {
                 fields.pitch=values['pitch']
                 fields.yaw=values['yaw']
             }
-            if (pathArray[1]  != "position") {
-              fields[pathArray[1]]=values
+            if (pathArray[1]  != "position" ) {
+              if (pathArray[1]  != "attitude" ) {
+                fields[pathArray[1]]=values
+              }
             }
 
         }
@@ -201,24 +203,24 @@ module.exports = function (app) {
     properties: {
       "influxHost": {
         type: 'string',
-        title: 'influx host url'
+        title: 'Influxdb2.0 Host URL'
       },
       "influxToken": {
         type: 'string',
-        title: 'influx token'
+        title: 'Influxdb2.0 Token'
       },
       "influxOrg": {
         type: 'string',
-        title: 'influx organisation'
+        title: 'Influxdb2.0 Organisation'
       },
       "influxBucket": {
         type: 'string',
-        title: 'influx bucket'
+        title: 'Influxdb2.0 Bucket'
       },
       "bufferDirectory": {
         type: 'string',
-        title: 'full path to directory where the buffer should be stored',
-        default: '/home/pi/'
+        title: 'full path to directory where the buffer should be stored (note no at end of dir)',
+        default: '/home/pi/signalkbuffer'
       },
       "pathFile": {
         type: 'string',
@@ -226,7 +228,7 @@ module.exports = function (app) {
       },
       "uploadFrequency": {
         type: 'number',
-        title: 'Frequency of batched write to influx in ms',
+        title: 'Frequency of batched write to Influxdb2.0 in ms',
         default: 30000
       }
 
