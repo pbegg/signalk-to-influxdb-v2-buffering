@@ -1,0 +1,18 @@
+{
+  "name": "signalk-to-influxdb-v2-buffering",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "signalk-node-server-plugin"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "influxdb-v2": "0.0.7"
+  },
+  "devDependencies": {},
+  "description": ""
+}
