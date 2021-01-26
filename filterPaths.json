@@ -36,10 +36,6 @@
         "period": 1000
     },
     {
-        "path": "propulsion.port.remoteControl.throttlePosition",
-        "period": 1000
-    },
-    {
         "path": "propulsion.port.transmission.gear",
         "period": 1000
     },
@@ -77,10 +73,6 @@
     },
     {
         "path": "propulsion.starboard.boostPressure",
-        "period": 1000
-    },
-    {
-        "path": "propulsion.starboard.remoteControl.throttlePosition",
         "period": 1000
     },
     {

@@ -9,7 +9,7 @@
   "keywords": [
     "signalk-node-server-plugin"
   ],
-  "author": "",
+  "author": "Phil Begg",
   "license": "ISC",
   "dependencies": {
     "influxdb-v2": "0.0.7"
