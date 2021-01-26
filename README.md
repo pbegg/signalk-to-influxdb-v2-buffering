@@ -29,27 +29,27 @@ Currently the pulgin is only supporting 'navigation' and 'propulsion' paths.
 
 ## Config Parameters
 
-# Influxdb2.0 Host URL
+### Influxdb2.0 Host URL
 the url to your cloud hosted influxb2.0
 ```us-west-2-1.aws.cloud2.influxdata.com```
 
-# Influxdb2.0 Token
+### Influxdb2.0 Token
 the token for your cloud hosted influxb2.0 bucket
 ```somesecrettoken```
 
-# Influxdb2.0 Organisation
+### Influxdb2.0 Organisation
 your influxdb2.0 organistion
 ```typically your email```
 
-# Influxdb2.0 Bucket
+### Influxdb2.0 Bucket
 which bucket you are storing the metrics in
 ```yourvesseldatabucket```
 
-# full path to directory where the buffer should be stored (note no at end of dir)
+### full path to directory where the buffer should be stored (note no at end of dir)
 the absolute path to the directory where you want to store your buffer, ensure there is no trailing / at the end
 ```/home/pi/signalkbuffer```
 
-# full path to the filterPaths.json file
+### full path to the filterPaths.json file
 instead of selecting all the paths you want to subscribe to inside the plugin config, this is the path to your filterPaths.json file see file in repo for an example.
 
 To select all paths make your filterPaths.json represent the below
@@ -59,5 +59,5 @@ To select all paths make your filterPaths.json represent the below
       period: 5000 // Every 5000ms
     }]
     ```
-# Frequency of batched write to Influxdb2.0 in ms
+### Frequency of batched write to Influxdb2.0 in ms
 how often you want to send the batch writes to influx
