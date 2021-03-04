@@ -1,11 +1,14 @@
 {
   "name": "signalk-to-influxdb-v2-buffering",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": "https://github.com/pbegg/signalk-to-influxdb-v2-buffering",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pbegg/signalk-to-influxdb-v2-buffering.git"
+  },
   "keywords": [
     "signalk-node-server-plugin"
   ],
@@ -15,5 +18,9 @@
     "influxdb-v2": "0.0.7"
   },
   "devDependencies": {},
-  "description": ""
+  "description": "Plugin that saves data to an influxdbv2 database - buffers data without internet connection",
+  "bugs": {
+    "url": "https://github.com/pbegg/signalk-to-influxdb-v2-buffering/issues"
+  },
+  "homepage": "https://github.com/pbegg/signalk-to-influxdb-v2-buffering#readme"
 }
