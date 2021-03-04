@@ -56,7 +56,7 @@ module.exports = function (app) {
   }
 
   function influxformat(path,values,signalkTimestamp,options) {
-    if (values == null){
+    if (values == 'null'){
       values = 0
     }
     //Set variables for metric
