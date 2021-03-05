@@ -1,4 +1,3 @@
-
 const Influxdb = require('influxdb-v2');
 const buffer = require('./buffer.js')
 
@@ -19,9 +18,6 @@ module.exports = function (app) {
 
   let vesselname = app.getSelfPath('name')
   let vesselfleet = app.getSelfPath('fleet')
-
-
-  let influxPost = function (options,influxdb,metrics) {
 
 
   let influxPost = function (options,influxdb,metrics) {
@@ -102,8 +98,6 @@ module.exports = function (app) {
   }
   
 
-
-
   let influxFormat = function(path,values,signalkTimestamp,options) {
       const measurement = path
       const tags = {"vesselname":vesselname}
@@ -129,10 +123,6 @@ module.exports = function (app) {
       "subscribe" : subscribeArray
     })
   }
-
-
-    metricArray = []
-    bufferArray = []
 
 
   let _start = function(options) {
@@ -173,8 +163,6 @@ module.exports = function (app) {
           const timestamp = u.timestamp
 
           if (signalkPathCheck(path) == true) {
-            app.debug('its a postiion or attitude')
-            //app.debug(values)
 
             modifyPath(path,values,timestamp,options)
           }
@@ -286,44 +274,3 @@ module.exports = function (app) {
   return plugin;
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
