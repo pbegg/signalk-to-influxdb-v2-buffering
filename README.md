@@ -5,26 +5,16 @@ The plugin is designed to do batch writes to a cloud hosted influxdb2.0 data bas
 
 ## Influx Measurement format
 It is storing the metrics in the following format eg: 
-propulsion.port.transmission.oilPressure = 30.0
+
 
 ```
-{
-	"measurement": 'propulsion'
-	"tags": {
-		"engine": "port",
-		"component": "transmission",
-		"vesselname": "self.name"
-	},
-	"fields" : {
-		oilPressure: 30.0
-	},
-	timestamp: 1611618842558
-
+propulsion.port.transmission.oilPressure = 30.0
+navigation.position.latitude = -19.26
 ```
 
 
 ## Paths Supported
-Currently the pulgin is only supporting 'navigation' and 'propulsion' paths.
+Currently the pulgin is only supporting all paths that have a numrical value (also position and attitude.
 
 
 ## Config Parameters
@@ -49,15 +39,13 @@ which bucket you are storing the metrics in
 the absolute path to the directory where you want to store your buffer, ensure there is no trailing / at the end
 ```/home/pi/signalkbuffer```
 
-### full path to the filterPaths.json file
-instead of selecting all the paths you want to subscribe to inside the plugin config, this is the path to your filterPaths.json file see file in repo for an example.
+### pathArray
 
-To select all paths make your filterPaths.json represent the below
 
 ```
 [{
-      path: '*', // Get all paths
-      period: 5000 // Every 5000ms
+      path: 'propulsion.starboard.revolutions', // Get all paths
+      interval: 5000 // Every 5000ms
     }]
 ```
 
