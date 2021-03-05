@@ -6,30 +6,25 @@ const buffer = require('./buffer.js')
 
 
 module.exports = function (app) {
-  var plugin = {};
 
-  plugin.id = 'signalk-to-influxdb-v2-buffer';
-  plugin.name = 'Signalk To Influxdbv2.0';
-  plugin.description = 'Plugin that saves data to an influxdbv2 database - buffers data without internet connection';
-
-  var unsubscribes = [];
+  let unsubscribes = []
 
 
+  let metricArray = []
+  let bufferArray = []
 
-  
+  let influxUploadTimer
 
-  let timerId;
 
-<<<<<<< Updated upstream
-  function influxPost(options,influxdb,metrics) {
-=======
+
   let vesselname = app.getSelfPath('name')
   let vesselfleet = app.getSelfPath('fleet')
 
 
   let influxPost = function (options,influxdb,metrics) {
-    
->>>>>>> Stashed changes
+
+
+  let influxPost = function (options,influxdb,metrics) {
     influxdb.write(
       {
         org: options.influxOrg, // [Required] your organization. You can set `orgID` if you prefer to use the ID
@@ -62,72 +57,52 @@ module.exports = function (app) {
         }
     })
     
+  }  
+  
+
+  let modifyPath = function(path,values,signalkTimestamp,options) {
+    if (path == "navigation.position") {
+      const pathLatitude = "navigation.position.latitude"
+      const valueLatitude = values['latitude']
+      const timestamp = signalkTimestamp
+
+      const pathLongitude = "navigation.position.longitude"
+      const valueLongitude = values['longitude']
+
+      influxFormat(pathLatitude,valueLatitude,timestamp,options)
+      influxFormat(pathLongitude,valueLongitude,timestamp,options)
+    }
+
+    if (path == "navigation.attitude") {
+      const pathRoll = "navigation.attitude.roll"
+      const valueRoll = values['roll']
+      const timestamp = signalkTimestamp
+
+      const pathPitch = "navigation.attitude.pitch"
+      const valuePitch = values['pitch']
+
+      const pathYaw = "navigation.attitude.yaw"
+      const valueYaw = values['yaw']
+
+      influxFormat(pathRoll,valueRoll,timestamp,options)
+      influxFormat(pathPitch,valuePitch,timestamp,options)
+      influxFormat(pathYaw,valueYaw,timestamp,options)
+    }    
   }
 
-  function influxformat(path,values,signalkTimestamp,options) {
-    if (values == 'null'){
-      values = 0
-    }
-    //Set variables for metric
-    let measurement = ''
-    const tags = {}
-    const fields = {}
 
-    //Define Static Tags
-    tags.vesselname=options.vesselname
-
-    //Get correct measurement based on path. It is the base of the path
-    const pathArray = path.split('.')
-    
-    //propulsion path
-    if (pathArray[0] == 'propulsion') {
-      measurement = pathArray[0]
-      tags.engine = pathArray[1]
-      timestamp = Date.parse(signalkTimestamp)
-      if (pathArray.length == 3) {
-          fields[pathArray[2]]=values
-      }
-      if (pathArray.length > 3) {
-          tags.component=pathArray[2]
-          fields[pathArray[pathArray.length-1]]=values
-      }    
-    }
-    //navigation path
-    if (pathArray[0] == 'navigation') {
-        measurement = pathArray[0]
-        timestamp = Date.parse(signalkTimestamp)
-        if (pathArray.length == 2) {
-            if (pathArray[1]  == "position") {
-                fields.latitude=values['latitude']
-                fields.longitude=values['longitude']
-            }
-            if (pathArray[1]  == "attitude") {
-                fields.roll=values['roll']
-                fields.pitch=values['pitch']
-                fields.yaw=values['yaw']
-            }
-            if (pathArray[1]  != "position" ) {
-              if (pathArray[1]  != "attitude" ) {
-                fields[pathArray[1]]=values
-              }
-            }
-
-        }
-        if (pathArray.length > 2) {
-            tags.context=[pathArray[1]]
-            fields[pathArray[-1]]=values.value
-
-        }
+  let signalkPathCheck = function(path) {
+    if (path == "navigation.position") {
+      return true
     }
 
-<<<<<<< Updated upstream
-
-=======
     if (path == "navigation.attitude") {
       return true
     }
   }
   
+
+
 
   let influxFormat = function(path,values,signalkTimestamp,options) {
       const measurement = path
@@ -135,79 +110,71 @@ module.exports = function (app) {
       const fields = {"value":values}
       const timestamp = Date.parse(signalkTimestamp)
       const metric = {measurement,tags,fields,timestamp}
->>>>>>> Stashed changes
 
-    const metric = {measurement,tags,fields,timestamp}
-    return metric
+      metricArray.push(metric)
   }
 
-  plugin.start = function (options, restartPlugin) {
 
-    app.debug('Plugin started');
+  let _localSubscription = function(options) {
+    const subscribeArray = []
+    options.pathArray.forEach(path => {
+      const subscribe = {}
+      subscribe.path = path.path
+      subscribe.policy = "instant"
+      subscribe.minPeriod = path.interval
+      subscribeArray.push(subscribe)
+    })
+    return (localSubscription = {
+      "context" : "vessels.self",
+      "subscribe" : subscribeArray
+    })
+  }
 
-<<<<<<< Updated upstream
+
     metricArray = []
     bufferArray = []
-=======
+
+
   let _start = function(options) {
     app.debug(`${plugin.name} Started...`)
->>>>>>> Stashed changes
 
-    const filterPaths = require(options.pathFile)
-    
-    
-    options.vesselname = app.getSelfPath('name')
-    
     const influxdb = new Influxdb({
-    host: options.influxHost,
-    token: options.influxToken 
-    })
-    
+      host: options.influxHost,
+      token: options.influxToken 
+      })
 
 
-    timerId = setInterval(() => {
+    influxUploadTimer = setInterval(function() {
       app.debug (`Sending ${metricArray.length} metrics to be uploaded to influx`)
       if (metricArray.length != 0) {
         influxPost(options,influxdb,metricArray)
         bufferArray = metricArray
         metricArray = []
       }
-
-    }
+      }
       , options.uploadFrequency)
     app.debug (`Interval Started, upload frequency: ${options.uploadFrequency}ms`)
 
-
-    let localSubscription = {
-      context: '*', // Get data for all contexts
-      subscribe: filterPaths
-    };
-
-
     app.subscriptionmanager.subscribe(
-      localSubscription,
+      _localSubscription(options),
       unsubscribes,
       subscriptionError => {
         app.error('Error:' + subscriptionError);
       },
       delta => {
-        if (!delta.updates) {
-          return;
-        }
         delta.updates.forEach(u => {
+          //if no u.values then return as there is no values to display
           if (!u.values) {
-            return;
+            return
           }
+
           const path = u.values[0].path
           const values = u.values[0].value
           const timestamp = u.timestamp
 
-<<<<<<< Updated upstream
-          const metric = influxformat(path,values,timestamp,options)
-          metricArray.push(metric)
-        })
-=======
           if (signalkPathCheck(path) == true) {
+            app.debug('its a postiion or attitude')
+            //app.debug(values)
 
             modifyPath(path,values,timestamp,options)
           }
@@ -226,65 +193,137 @@ module.exports = function (app) {
 
 
         });
->>>>>>> Stashed changes
       }
     );
-  };
+  }
 
-  plugin.stop = function () {
+ let _stop = function(options) {
+    app.debug(`${plugin.name} Stopped...`)
     unsubscribes.forEach(f => f());
     unsubscribes = [];
-    clearInterval(timerId)
-    app.debug('Interval Timer Stopped')
-    app.debug('Plugin stopped');
 
-  };
-
-  plugin.schema = {
-    type: 'object',
-    required: [
-      'influxHost',
-      'influxToken', 
-      'influxOrg',
-      'influxBucket',
-      'bufferDirectory',
-      'pathsFile',
-      'uploadFrequency'
-    ],
-    properties: {
-      "influxHost": {
-        type: 'string',
-        title: 'Influxdb2.0 Host URL'
-      },
-      "influxToken": {
-        type: 'string',
-        title: 'Influxdb2.0 Token'
-      },
-      "influxOrg": {
-        type: 'string',
-        title: 'Influxdb2.0 Organisation'
-      },
-      "influxBucket": {
-        type: 'string',
-        title: 'Influxdb2.0 Bucket'
-      },
-      "bufferDirectory": {
-        type: 'string',
-        title: 'full path to directory where the buffer should be stored (note no at end of dir)',
-        default: '/home/pi/signalkbuffer'
-      },
-      "pathFile": {
-        type: 'string',
-        title: 'full path to the filterPaths.json file'
-      },
-      "uploadFrequency": {
-        type: 'number',
-        title: 'Frequency of batched write to Influxdb2.0 in ms',
-        default: 30000
-      }
-
+    if (influxUploadTimer) {
+        clearInterval(influxUploadTimer);
     }
+    // clean up the state
+    influxUploadTimer = undefined;    
+  }
+
+
+  const plugin = {
+
+    id: 'signalk-to-influxdb-v2-buffer',
+    name: 'Signalk To Influxdbv2.0',
+    description: 'Plugin that saves data to an influxdbv2 database - buffers data without internet connection',
+
+    schema: {
+      type: 'object',
+      required: [
+        'influxHost',
+        'influxToken', 
+        'influxOrg',
+        'influxBucket',
+        'bufferDirectory',
+        'pathsFile',
+        'uploadFrequency'
+      ],
+      properties: {
+        influxHost: {
+          type: 'string',
+          title: 'Influxdb2.0 Host URL'
+        },
+        influxToken: {
+          type: 'string',
+          title: 'Influxdb2.0 Token'
+        },
+        influxOrg: {
+          type: 'string',
+          title: 'Influxdb2.0 Organisation'
+        },
+        influxBucket: {
+          type: 'string',
+          title: 'Influxdb2.0 Bucket'
+        },
+        bufferDirectory: {
+          type: 'string',
+          title: 'full path to directory where the buffer should be stored (note no at end of dir)',
+          default: '/home/pi/signalkbuffer'
+        },
+        pathArray: {
+          type: 'array',
+          title: "Paths",
+          default: [],
+          items: {
+            type: 'object',
+            required: ['path', 'interval'],
+            properties: {
+              path: {
+                type: 'string',
+                title: 'Signal K path to record'
+              },
+              interval: {
+                type: 'number',
+                title: 'Record Interval',
+                default: 1000
+              }
+            }
+        }
+        },
+        "uploadFrequency": {
+          type: 'number',
+          title: 'Frequency of batched write to Influxdb2.0 in ms',
+          default: 30000
+        }
+      }
+    },
+
+    start: _start,
+    stop: _stop
+   
+
   };
 
   return plugin;
-};
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
