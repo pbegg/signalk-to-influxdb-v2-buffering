@@ -1,7 +1,7 @@
 {
   "name": "signalk-to-influxdb-v2-buffering",
 
-  "version": "1.0.1",
+  "version": "1.0.2",
 
   "main": "index.js",
   "scripts": {
