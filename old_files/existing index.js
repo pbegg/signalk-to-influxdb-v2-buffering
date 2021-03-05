@@ -1,16 +1,6 @@
-
-const Influxdb = require('influxdb-v2');
-const buffer = require('./buffer.js')
+var plugin = {};
 
 
-
-
-module.exports = function (app) {
-  var plugin = {};
-
-  plugin.id = 'signalk-to-influxdb-v2-buffer';
-  plugin.name = 'Signalk To Influxdbv2.0';
-  plugin.description = 'Plugin that saves data to an influxdbv2 database - buffers data without internet connection';
 
   var unsubscribes = [];
 
@@ -20,16 +10,7 @@ module.exports = function (app) {
 
   let timerId;
 
-<<<<<<< Updated upstream
   function influxPost(options,influxdb,metrics) {
-=======
-  let vesselname = app.getSelfPath('name')
-  let vesselfleet = app.getSelfPath('fleet')
-
-
-  let influxPost = function (options,influxdb,metrics) {
-    
->>>>>>> Stashed changes
     influxdb.write(
       {
         org: options.influxOrg, // [Required] your organization. You can set `orgID` if you prefer to use the ID
@@ -120,22 +101,7 @@ module.exports = function (app) {
         }
     }
 
-<<<<<<< Updated upstream
 
-=======
-    if (path == "navigation.attitude") {
-      return true
-    }
-  }
-  
-
-  let influxFormat = function(path,values,signalkTimestamp,options) {
-      const measurement = path
-      const tags = {"vesselname":vesselname}
-      const fields = {"value":values}
-      const timestamp = Date.parse(signalkTimestamp)
-      const metric = {measurement,tags,fields,timestamp}
->>>>>>> Stashed changes
 
     const metric = {measurement,tags,fields,timestamp}
     return metric
@@ -145,13 +111,8 @@ module.exports = function (app) {
 
     app.debug('Plugin started');
 
-<<<<<<< Updated upstream
     metricArray = []
     bufferArray = []
-=======
-  let _start = function(options) {
-    app.debug(`${plugin.name} Started...`)
->>>>>>> Stashed changes
 
     const filterPaths = require(options.pathFile)
     
@@ -202,31 +163,9 @@ module.exports = function (app) {
           const values = u.values[0].value
           const timestamp = u.timestamp
 
-<<<<<<< Updated upstream
           const metric = influxformat(path,values,timestamp,options)
           metricArray.push(metric)
         })
-=======
-          if (signalkPathCheck(path) == true) {
-
-            modifyPath(path,values,timestamp,options)
-          }
-          else {
-            if (isNaN(values)) {
-              return
-            }
-            else {
-              influxFormat(path,values,timestamp,options)               
-            }
-          
-          }
-
-
-
-
-
-        });
->>>>>>> Stashed changes
       }
     );
   };
@@ -237,6 +176,7 @@ module.exports = function (app) {
     clearInterval(timerId)
     app.debug('Interval Timer Stopped')
     app.debug('Plugin stopped');
+    app.debug('test')
 
   };
 
