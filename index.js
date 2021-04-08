@@ -20,44 +20,6 @@ module.exports = function (app) {
   let vesselfleet = app.getSelfPath('fleet')
 
 
-
-
-  //let influxPost = function (options,influxdb,metrics) {
-    //influxdb.write(
-      //{
-        //org: options.influxOrg, // [Required] your organization. You can set `orgID` if you prefer to use the ID
-        //bucket: options.influxBucket, // [Required] your bucket
-        //precision: 'ms' // precision of timestamp. Can be `ns` (nanoseconds), `us` (microseconds), `ms` (milliseconds) or `s` (seconds). The default is `ns`
-      //},
-      //metrics,
-    //)
-    //.then(resp => {
-      //app.debug(resp + 'Successfully uploaded')
-      //bufferResult = buffer.loadBuffer(options) 
-      //if (bufferResult == false) {
-        //return
-      //}
-      //else {      
-        //app.debug('There are files in the buffer')
-        //app.debug(JSON.stringify(bufferResult))
-        //influxPost(options,influxdb,buffer.sendBuffer(bufferResult,options))
-      //}
-//
-    //})
-    //.catch(err => {
-      //// Handle errors
-        //buffer.buffer(bufferArray,options)
-        //bufferArray= []
-        //app.debug(`bufferring metrics because ${err.message}`);
-        //const bufferResult = buffer.loadBuffer(options)
-        //if (bufferResult != false) {
-          //app.debug(`There are ${bufferResult.length} files in the buffer`)
-        //}
-    //})
-//    
-  //}  
-
-
   
 
   let modifyPath = function(path,values,signalkTimestamp,options) {
@@ -140,19 +102,37 @@ module.exports = function (app) {
 
   let _start = function(options) {
     app.debug(`${plugin.name} Started...`)
+    const defaultTags = {}
+
+
+    //Set Variables from plugin options
     const url = options["influxHost"]
     const token = options["influxToken"]
     const org = options["influxOrg"]
     const bucket = options["influxBucket"]
     const writeOptions = options["writeOptions"]
+
+
     vesselname = "TestVessel22"
     writeOptions.defaultTags = {vesselname:vesselname}
-    app.debug(writeOptions)
+
+    options.defaultTags.forEach(tag => {
+    	defaultTags[tag["tagName"]]=tag["tagValue"]
+    	app.debug(defaultTags)
+
+    })
 
 
-    const writeApi = new InfluxDB({url,token}).getWriteApi(org,bucket,'ms',writeOptions)
+    const writeApi = new InfluxDB({
+    	url,
+    	token})
+    		.getWriteApi(
+    			org,
+    			bucket,
+    			'ms',
+    			writeOptions)
 
-    writeApi.useDefaultTags({vesselname:vesselname})
+    writeApi.useDefaultTags(defaultTags)
 
     //writeApi.useDefaultTags({vesselname: app.getSelfPath('name')})
 
@@ -259,9 +239,9 @@ module.exports = function (app) {
 	         },
 	         "writeOptions":{
 	            "type":"object",
+	            "title": "Influx Write Options",
 	            "required":[
 	               "batchSize",
-	               "defaultTags",
 	               "flushInterval",
 	               "maxBufferLines",
 	               "maxRetries",
@@ -273,12 +253,7 @@ module.exports = function (app) {
 	               "batchSize":{
 	                  "type":"number",
 	                  "title":"Batch Size",
-	                  "default": 1000
-	               },
-	               "defaultTags":{
-	                  "type":"string",
-	                  "title":"Default Tags",
-	                  "default": "VesselNameHere"
+	                  "default": 1000	           
 	               },
 	               "flushInterval":{
 	                  "type":"number",
@@ -310,7 +285,29 @@ module.exports = function (app) {
 	                  "title":"Retry Jitter",
 	                  "default": 200
 	               }
+	           }
+	       },
+	           "defaultTags":{
+	            "type":"array",
+	            "title": "Default Tags",
+	            "items": {
+	            	"type": "object",
+					"required":[
+						"tagName",
+						"tagValue"
+					],
+					"properties":{
+	                  "tagName":{
+	                     "type":"string",
+	                     "title":"Tag Name"
+	                  },
+	                  "tagValue":{
+	                     "type":"string",
+	                     "title":"Tag Value"			                     
+	                  }						
+					}	            	
 	            }
+
 	         },
 	         "pathArray":{
 	            "type":"array",
@@ -335,12 +332,8 @@ module.exports = function (app) {
 	                     "default":1000
 	                  }
 	               }
-	            },
-	            "uploadFrequency":{
-	               "type":"number",
-	               "title":"Frequency of batched write to Influxdb2.0 in ms",
-	               "default":30000
 	            }
+
 	         }
 	      }
 
