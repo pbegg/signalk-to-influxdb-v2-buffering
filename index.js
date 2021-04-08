@@ -109,7 +109,16 @@ module.exports = function (app) {
       const timestamp = Date.parse(signalkTimestamp)
       const metric = {measurement,tags,fields,timestamp}
 
-      metricArray.push(metric)
+      const point = new Point(measurement)
+      	.floatField('value',values)
+      	.timestamp(Date.parse(signalkTimestamp))
+
+      app.debug(point)
+
+      return point
+
+
+      //metricArray.push(metric)
   }
 
 
@@ -136,14 +145,14 @@ module.exports = function (app) {
     const org = options["influxOrg"]
     const bucket = options["influxBucket"]
     const writeOptions = options["writeOptions"]
+    vesselname = "TestVessel22"
+    writeOptions.defaultTags = {vesselname:vesselname}
     app.debug(writeOptions)
 
 
-    const writeApi = new InfluxDB({url,token})
-   
+    const writeApi = new InfluxDB({url,token}).getWriteApi(org,bucket,'ms',writeOptions)
 
-
-   	writeApi.getWriteApi(org,bucket,'ms',writeOptions)
+    writeApi.useDefaultTags({vesselname:vesselname})
 
     //writeApi.useDefaultTags({vesselname: app.getSelfPath('name')})
 
@@ -190,7 +199,7 @@ module.exports = function (app) {
               return
             }
             else {
-              influxFormat(path,values,timestamp,options)               
+              	writeApi.writePoint(influxFormat(path,values,timestamp,options))           
             }
           
           }
@@ -267,9 +276,9 @@ module.exports = function (app) {
 	                  "default": 1000
 	               },
 	               "defaultTags":{
-	                  "type":"object",
+	                  "type":"string",
 	                  "title":"Default Tags",
-	                  "default": "{vesselname: VesselNameHere}"
+	                  "default": "VesselNameHere"
 	               },
 	               "flushInterval":{
 	                  "type":"number",
