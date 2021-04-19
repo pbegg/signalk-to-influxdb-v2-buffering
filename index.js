@@ -112,10 +112,6 @@ module.exports = function (app) {
     const bucket = options["influxBucket"]
     const writeOptions = options["writeOptions"]
 
-
-    vesselname = "TestVessel22"
-    writeOptions.defaultTags = {vesselname:vesselname}
-
     options.defaultTags.forEach(tag => {
     	defaultTags[tag["tagName"]]=tag["tagValue"]
     	app.debug(defaultTags)
