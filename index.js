@@ -31,8 +31,13 @@ module.exports = function (app) {
       const pathLongitude = "navigation.position.longitude"
       const valueLongitude = values['longitude']
 
-      influxFormat(pathLatitude,valueLatitude,timestamp,options)
-      influxFormat(pathLongitude,valueLongitude,timestamp,options)
+      const latitude = {path: pathLatitude, value: valueLatitude, timestamp: timestamp}
+      const longitude = {path: pathLongitude, value: valueLongitude, timestamp: timestamp}
+
+      return [latitude,longitude]
+
+      //influxFormat(pathLatitude,valueLatitude,timestamp,options)
+      //influxFormat(pathLongitude,valueLongitude,timestamp,options)
     }
 
     if (path == "navigation.attitude") {
@@ -46,9 +51,15 @@ module.exports = function (app) {
       const pathYaw = "navigation.attitude.yaw"
       const valueYaw = values['yaw']
 
-      influxFormat(pathRoll,valueRoll,timestamp,options)
-      influxFormat(pathPitch,valuePitch,timestamp,options)
-      influxFormat(pathYaw,valueYaw,timestamp,options)
+      const roll = {path: pathRoll, value: valueRoll, timestamp: timestamp}
+      const pitch = {path: pathPitch, value: valuePitch, timestamp: timestamp}
+      const yaw = {path: pathYaw, value: valueYaw, timestamp: timestamp}
+
+      return [roll,pitch,yaw]
+
+      //influxFormat(pathRoll,valueRoll,timestamp,options)
+      //influxFormat(pathPitch,valuePitch,timestamp,options)
+      //influxFormat(pathYaw,valueYaw,timestamp,options)
     }    
   }
 
@@ -66,10 +77,8 @@ module.exports = function (app) {
 
   let influxFormat = function(path,values,signalkTimestamp,options) {
       const measurement = path
-      const tags = {"vesselname":vesselname}
       const fields = {"value":values}
       const timestamp = Date.parse(signalkTimestamp)
-      const metric = {measurement,tags,fields,timestamp}
 
       const point = new Point(measurement)
       	.floatField('value',values)
@@ -93,6 +102,7 @@ module.exports = function (app) {
       subscribe.minPeriod = path.interval
       subscribeArray.push(subscribe)
     })
+    app.debug(subscribeArray)
     return (localSubscription = {
       "context" : "vessels.self",
       "subscribe" : subscribeArray
@@ -102,15 +112,14 @@ module.exports = function (app) {
 
   let _start = function(options) {
     app.debug(`${plugin.name} Started...`)
-    const defaultTags = {}
-
-
+    
     //Set Variables from plugin options
     const url = options["influxHost"]
     const token = options["influxToken"]
     const org = options["influxOrg"]
     const bucket = options["influxBucket"]
     const writeOptions = options["writeOptions"]
+    const defaultTags = {}
 
     options.defaultTags.forEach(tag => {
     	defaultTags[tag["tagName"]]=tag["tagValue"]
@@ -118,7 +127,7 @@ module.exports = function (app) {
 
     })
 
-
+    //Create InfluxDB 
     const writeApi = new InfluxDB({
     	url,
     	token})
@@ -130,24 +139,6 @@ module.exports = function (app) {
 
     writeApi.useDefaultTags(defaultTags)
 
-    //writeApi.useDefaultTags({vesselname: app.getSelfPath('name')})
-
-    //const influxdb = new Influxdb({
-      //host: options.influxHost,
-      //token: options.influxToken 
-      //})
-//
-//
-    //influxUploadTimer = setInterval(function() {
-      //app.debug (`Sending ${metricArray.length} metrics to be uploaded to influx`)
-      //if (metricArray.length != 0) {
-        //influxPost(options,influxdb,metricArray)
-        //bufferArray = metricArray
-        //metricArray = []
-      //}
-      //}
-      //, options.uploadFrequency)
-    //app.debug (`Interval Started, upload frequency: ${options.uploadFrequency}ms`)
 
     app.subscriptionmanager.subscribe(
       _localSubscription(options),
@@ -168,7 +159,17 @@ module.exports = function (app) {
 
           if (signalkPathCheck(path) == true) {
 
-            modifyPath(path,values,timestamp,options)
+            const pathArray = modifyPath(path,values,timestamp,options)
+            pathArray.forEach(seperatePath => {
+              app.debug(seperatePath)
+              if (isNaN(seperatePath["value"])) {
+                return
+              }
+              else {
+                writeApi.writePoint(influxFormat(seperatePath.path,seperatePath.value,seperatePath.timestamp,options))
+              }
+              
+            })
           }
           else {
             if (isNaN(values)) {
