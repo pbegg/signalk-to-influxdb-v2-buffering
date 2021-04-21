@@ -181,10 +181,6 @@ module.exports = function (app) {
           
           }
 
-
-
-
-
         });
       }
     );
@@ -194,6 +190,7 @@ module.exports = function (app) {
     app.debug(`${plugin.name} Stopped...`)
     unsubscribes.forEach(f => f());
     unsubscribes = [];
+
 
     //if (influxUploadTimer) {
         //clearInterval(influxUploadTimer);
