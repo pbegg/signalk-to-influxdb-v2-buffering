@@ -1,4 +1,3 @@
-const buffer = require('./buffer.js')
 const {InfluxDB, Point, HttpError} = require('@influxdata/influxdb-client')
 
 
@@ -217,19 +216,23 @@ module.exports = function (app) {
 	      "properties":{
 	         "influxHost":{
 	            "type":"string",
-	            "title":"Influxdb2.0 Host URL"
+	            "title":"Influxdb2.0 Host URL",
+              "description": "the url to your cloud hosted influxb2.0"
 	         },
 	         "influxToken":{
 	            "type":"string",
-	            "title":"Influxdb2.0 Token"
+	            "title":"Influxdb2.0 Token",
+              "description": "the token for your cloud hosted influxb2.0 bucket"
 	         },
 	         "influxOrg":{
 	            "type":"string",
-	            "title":"Influxdb2.0 Organisation"
+	            "title":"Influxdb2.0 Organisation",
+              "description": "your influxdb2.0 organistion"
 	         },
 	         "influxBucket":{
 	            "type":"string",
-	            "title":"Influxdb2.0 Bucket"
+	            "title":"Influxdb2.0 Bucket",
+              "description": "which bucket you are storing the metrics in"
 	         },
 	         "writeOptions":{
 	            "type":"object",
@@ -247,36 +250,43 @@ module.exports = function (app) {
 	               "batchSize":{
 	                  "type":"number",
 	                  "title":"Batch Size",
+                    "description": "the maximum points/line to send in a single batch to InfluxDB server",
 	                  "default": 1000	           
 	               },
 	               "flushInterval":{
 	                  "type":"number",
 	                  "title":"Flush Interval",
+                    "description": "maximum time in millis to keep points in an unflushed batch, 0 means don't periodically flush",
 	                  "default": 30000
 	               },
 	               "maxBufferLines":{
 	                  "type":"number",
 	                  "title":"Maximum Buffer Lines",
+                    "description": "maximum size of the retry buffer - it contains items that could not be sent for the first time",
 	                  "default": 32000
 	               },
 	               "maxRetries":{
 	                  "type":"number",
 	                  "title":"Maximum Retries",
+                    "description": "maximum delay between retries in milliseconds",
 	                  "default": 3
 	               },
 	               "maxRetryDelay":{
 	                  "type":"number",
 	                  "title":"Maximum Retry Delay",
+                    "description": "maximum delay between retries in milliseconds",
 	                  "default": 5000
 	               },
 	               "minRetryDelay":{
 	                  "type":"number",
 	                  "title":"Minimum Retry Delay",
+                    "description": "minimum delay between retries in milliseconds",
 	                  "default": 180000
 	               },
 	               "retryJitter":{
 	                  "type":"number",
 	                  "title":"Retry Jitter",
+                    "description": "a random value of up to retryJitter is added when scheduling next retry",
 	                  "default": 200
 	               }
 	           }
