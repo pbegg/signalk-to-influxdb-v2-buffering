@@ -164,10 +164,11 @@ module.exports = function (app) {
           }
           else {
             if (isNaN(values) || values == null || isNaN(parseFloat(values))) {
+              app.debug(`Skipping path ${path} because values is invalid, "${value}"`)
               return
             }
             else {
-              	writeApi.writePoint(influxFormat(path,values,timestamp,options))
+              writeApi.writePoint(influxFormat(path,values,timestamp,options))
             }
           }
         });
