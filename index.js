@@ -141,7 +141,7 @@ module.exports = function (app) {
       delta => {
         delta.updates.forEach(u => {
           //if no u.values then return as there is no values to display
-          if (!u.values) {
+          if (!u.values || u.values == null) {
             return
           }
 
@@ -160,18 +160,16 @@ module.exports = function (app) {
               else {
                 writeApi.writePoint(influxFormat(seperatePath.path,seperatePath.value,seperatePath.timestamp,options))
               }
-              
             })
           }
           else {
-            if (isNaN(values)) {
+            if (isNaN(values) || values == null) {
               return
             }
             else {
               	writeApi.writePoint(influxFormat(path,values,timestamp,options))
             }
           }
-
         });
       }
     );
