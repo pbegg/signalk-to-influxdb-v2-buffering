@@ -174,7 +174,7 @@ module.exports = function (app) {
           }
           else {
             if (isNaN(values)) {
-              app.debug(`Skipping path ${path} because values is invalid, "${value}"`)
+              app.debug(`Skipping path ${path} because values is invalid, "${values}"`)
               return
             }
             else {
