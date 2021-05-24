@@ -67,7 +67,18 @@ module.exports = function (app) {
     }
   }
 
+  let isfloatField = function(n) {
+      return Number(n) === n;	  
+  }
+
   let influxFormat = function(path,values,signalkTimestamp,options) {
+      app.debug(`Processing path '${path}'`)
+      if (!isfloatField(values)) {
+        app.debug(`invalid values for path ${path}`)
+        app.debug(`with {"value":${values}}`)
+        return
+      }
+	  
       const measurement = path
       const fields = {"value":values}
       const timestamp = Date.parse(signalkTimestamp)
@@ -141,7 +152,7 @@ module.exports = function (app) {
       delta => {
         delta.updates.forEach(u => {
           //if no u.values then return as there is no values to display
-          if (!u.values || u.values == null) {
+          if (!u.values) {
             return
           }
 
@@ -163,7 +174,7 @@ module.exports = function (app) {
             })
           }
           else {
-            if (isNaN(values) || values == null || isNaN(parseFloat(values))) {
+            if (isNaN(values)) {
               app.debug(`Skipping path ${path} because values is invalid, "${value}"`)
               return
             }
