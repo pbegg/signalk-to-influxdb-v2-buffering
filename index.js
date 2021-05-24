@@ -144,6 +144,10 @@ module.exports = function (app) {
           if (!u.values || u.values == null) {
             return
           }
+          // Avoid Error: Expected float value for field value but got string
+          if (isNaN(parseFloat(u.values))) {
+            return
+          }
 
           const path = u.values[0].path
           const values = u.values[0].value
@@ -180,14 +184,13 @@ module.exports = function (app) {
     unsubscribes.forEach(f => f());
     unsubscribes = [];
 
-
-    //if (influxUploadTimer) {
-        //clearInterval(influxUploadTimer);
-    //}
-    //// clean up the state
-    //influxUploadTimer = undefined;
-  //}
-	}
+//if (influxUploadTimer) {
+//clearInterval(influxUploadTimer);
+//}
+//// clean up the state
+//influxUploadTimer = undefined;
+//}
+ }
 
 
  const plugin = {
@@ -330,8 +333,8 @@ module.exports = function (app) {
 	      }
 
 	   },
-	   	start: _start,
-	    stop: _stop
+	   start: _start,
+	   stop: _stop
 	}
   
 return plugin
