@@ -163,7 +163,7 @@ module.exports = function (app) {
             })
           }
           else {
-            if (isNaN(values) || values == null || isNaN(parseFloat(u.values))) {
+            if (isNaN(values) || values == null || isNaN(parseFloat(values))) {
               return
             }
             else {
