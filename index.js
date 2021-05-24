@@ -74,8 +74,7 @@ module.exports = function (app) {
   let influxFormat = function(path,values,signalkTimestamp,options) {
       app.debug(`Processing path '${path}'`)
       if (!isfloatField(values)) {
-        app.debug(`invalid values for path ${path}`)
-        app.debug(`with {"value":${values}}`)
+        app.debug(`invalid values for path '${path}' with value '${values}'`)
         return
       }
 	  
