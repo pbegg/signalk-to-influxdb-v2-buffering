@@ -71,13 +71,7 @@ module.exports = function (app) {
       return Number(n) === n;	  
   }
 
-  let influxFormat = function(path,values,signalkTimestamp,options) {
-      app.debug(`Processing path '${path}'`)
-      if (!isfloatField(values)) {
-        app.debug(`invalid values for path '${path}' with value '${values}'`)
-        return
-      }
-	  
+  let influxFormat = function(path,values,signalkTimestamp,options) { 
       const measurement = path
       const fields = {"value":values}
       const timestamp = Date.parse(signalkTimestamp)
@@ -173,8 +167,8 @@ module.exports = function (app) {
             })
           }
           else {
-            if (isNaN(values)) {
-              app.debug(`Skipping path ${path} because values is invalid, "${values}"`)
+            if (isNaN(values) || !isfloatField(values)) {
+              app.debug(`Skipping path '${path}' because values is invalid, '${values}'`)
               return
             }
             else {
