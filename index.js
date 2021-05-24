@@ -144,10 +144,6 @@ module.exports = function (app) {
           if (!u.values || u.values == null) {
             return
           }
-          // Avoid Error: Expected float value for field value but got string
-          if (isNaN(parseFloat(u.values))) {
-            return
-          }
 
           const path = u.values[0].path
           const values = u.values[0].value
@@ -167,7 +163,7 @@ module.exports = function (app) {
             })
           }
           else {
-            if (isNaN(values) || values == null) {
+            if (isNaN(values) || values == null || isNaN(parseFloat(u.values))) {
               return
             }
             else {
