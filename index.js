@@ -167,7 +167,7 @@ module.exports = function (app) {
             })
           }
           else {
-            if (isNaN(values) || !isfloatField(values)) {
+            if (isNaN(values) || !isfloatField(values) || !isFinite(values)) {
               app.debug(`Skipping path '${path}' because values is invalid, '${values}'`)
               return
             }
