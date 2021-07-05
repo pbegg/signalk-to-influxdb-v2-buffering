@@ -7,19 +7,13 @@ module.exports = function (app) {
 
   let unsubscribes = []
 
-
   let metricArray = []
   let bufferArray = []
 
   let influxUploadTimer
 
-
-
   let vesselname = app.getSelfPath('name')
   let vesselfleet = app.getSelfPath('fleet')
-
-
-  
 
   let modifyPath = function(path,values,signalkTimestamp,options) {
     if (path == "navigation.position") {
@@ -59,7 +53,7 @@ module.exports = function (app) {
       //influxFormat(pathRoll,valueRoll,timestamp,options)
       //influxFormat(pathPitch,valuePitch,timestamp,options)
       //influxFormat(pathYaw,valueYaw,timestamp,options)
-    }    
+    }
   }
 
 
@@ -72,9 +66,12 @@ module.exports = function (app) {
       return true
     }
   }
-  
 
-  let influxFormat = function(path,values,signalkTimestamp,options) {
+  let isfloatField = function(n) {
+      return Number(n) === n;	  
+  }
+
+  let influxFormat = function(path,values,signalkTimestamp,options) { 
       const measurement = path
       const fields = {"value":values}
       const timestamp = Date.parse(signalkTimestamp)
@@ -111,7 +108,7 @@ module.exports = function (app) {
 
   let _start = function(options) {
     app.debug(`${plugin.name} Started...`)
-    
+
     //Set Variables from plugin options
     const url = options["influxHost"]
     const token = options["influxToken"]
@@ -126,7 +123,7 @@ module.exports = function (app) {
 
     })
 
-    //Create InfluxDB 
+    //Create InfluxDB
     const writeApi = new InfluxDB({
     	url,
     	token})
@@ -167,19 +164,17 @@ module.exports = function (app) {
               else {
                 writeApi.writePoint(influxFormat(seperatePath.path,seperatePath.value,seperatePath.timestamp,options))
               }
-              
             })
           }
           else {
-            if (isNaN(values)) {
+            if (isNaN(values) || !isfloatField(values) || !isFinite(values)) {
+              app.debug(`Skipping path '${path}' because values is invalid, '${values}'`)
               return
             }
             else {
-              	writeApi.writePoint(influxFormat(path,values,timestamp,options))           
+              writeApi.writePoint(influxFormat(path,values,timestamp,options))
             }
-          
           }
-
         });
       }
     );
@@ -190,14 +185,13 @@ module.exports = function (app) {
     unsubscribes.forEach(f => f());
     unsubscribes = [];
 
-
-    //if (influxUploadTimer) {
-        //clearInterval(influxUploadTimer);
-    //}
-    //// clean up the state
-    //influxUploadTimer = undefined;    
-  //}
-	}
+//if (influxUploadTimer) {
+//clearInterval(influxUploadTimer);
+//}
+//// clean up the state
+//influxUploadTimer = undefined;
+//}
+ }
 
 
  const plugin = {
@@ -217,22 +211,22 @@ module.exports = function (app) {
 	         "influxHost":{
 	            "type":"string",
 	            "title":"Influxdb2.0 Host URL",
-              "description": "the url to your cloud hosted influxb2.0"
+	            "description": "the url to your cloud hosted influxb2.0"
 	         },
 	         "influxToken":{
 	            "type":"string",
 	            "title":"Influxdb2.0 Token",
-              "description": "the token for your cloud hosted influxb2.0 bucket"
+	            "description": "the token for your cloud hosted influxb2.0 bucket"
 	         },
 	         "influxOrg":{
 	            "type":"string",
 	            "title":"Influxdb2.0 Organisation",
-              "description": "your influxdb2.0 organistion"
+	            "description": "your influxdb2.0 organistion"
 	         },
 	         "influxBucket":{
 	            "type":"string",
 	            "title":"Influxdb2.0 Bucket",
-              "description": "which bucket you are storing the metrics in"
+	            "description": "which bucket you are storing the metrics in"
 	         },
 	         "writeOptions":{
 	            "type":"object",
@@ -250,43 +244,43 @@ module.exports = function (app) {
 	               "batchSize":{
 	                  "type":"number",
 	                  "title":"Batch Size",
-                    "description": "the maximum points/line to send in a single batch to InfluxDB server",
-	                  "default": 1000	           
+	                  "description": "the maximum points/line to send in a single batch to InfluxDB server",
+	                  "default": 1000
 	               },
 	               "flushInterval":{
 	                  "type":"number",
 	                  "title":"Flush Interval",
-                    "description": "maximum time in millis to keep points in an unflushed batch, 0 means don't periodically flush",
+	                  "description": "maximum time in millis to keep points in an unflushed batch, 0 means don't periodically flush",
 	                  "default": 30000
 	               },
 	               "maxBufferLines":{
 	                  "type":"number",
 	                  "title":"Maximum Buffer Lines",
-                    "description": "maximum size of the retry buffer - it contains items that could not be sent for the first time",
+	                  "description": "maximum size of the retry buffer - it contains items that could not be sent for the first time",
 	                  "default": 32000
 	               },
 	               "maxRetries":{
 	                  "type":"number",
 	                  "title":"Maximum Retries",
-                    "description": "maximum delay between retries in milliseconds",
+	                  "description": "maximum delay between retries in milliseconds",
 	                  "default": 3
 	               },
 	               "maxRetryDelay":{
 	                  "type":"number",
 	                  "title":"Maximum Retry Delay",
-                    "description": "maximum delay between retries in milliseconds",
+	                  "description": "maximum delay between retries in milliseconds",
 	                  "default": 5000
 	               },
 	               "minRetryDelay":{
 	                  "type":"number",
 	                  "title":"Minimum Retry Delay",
-                    "description": "minimum delay between retries in milliseconds",
+	                  "description": "minimum delay between retries in milliseconds",
 	                  "default": 180000
 	               },
 	               "retryJitter":{
 	                  "type":"number",
 	                  "title":"Retry Jitter",
-                    "description": "a random value of up to retryJitter is added when scheduling next retry",
+	                  "description": "a random value of up to retryJitter is added when scheduling next retry",
 	                  "default": 200
 	               }
 	           }
@@ -296,28 +290,26 @@ module.exports = function (app) {
 	            "title": "Default Tags",
 	            "items": {
 	            	"type": "object",
-					"required":[
-						"tagName",
-						"tagValue"
-					],
-					"properties":{
+			"required":[
+				"tagName",
+				"tagValue"
+			],
+			"properties":{
 	                  "tagName":{
 	                     "type":"string",
 	                     "title":"Tag Name"
 	                  },
 	                  "tagValue":{
 	                     "type":"string",
-	                     "title":"Tag Value"			                     
-	                  }						
-					}	            	
+	                     "title":"Tag Value"
+	                  }
+			}
 	            }
-
 	         },
 	         "pathArray":{
 	            "type":"array",
 	            "title":"Paths",
 	            "default":[
-	               
 	            ],
 	            "items":{
 	               "type":"object",
@@ -342,8 +334,8 @@ module.exports = function (app) {
 	      }
 
 	   },
-	   	start: _start,
-	    stop: _stop
+	   start: _start,
+	   stop: _stop
 	}
   
 return plugin
