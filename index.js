@@ -3,7 +3,7 @@
 //
 // Description: The plugin is designed to do batch writes to a cloud hosted influxdb2.0
 //              data base.The Plugin now uses the https://github.com/influxdata/influxdb-client-js
-//              library. If the conenction to the influxdb is down the batch of metrics should be
+//              library. If the connection to the influxdb is down the batch of metrics should be
 //              buffered and re-uploaded when the internet connection is re-established
 //
 // Repository:  https://github.com/pbegg/signalk-to-influxdb-v2-buffering
@@ -15,10 +15,10 @@
 //              -   added ability to push data from contexts outside of 'vessel.self'
 //              -   added ability to expand properties of any measurement (i.e. building on previous ability
 //                  to expand position and attitude, now any measurement with multiple properties can be expanded)
-//              -   added ability to add tags against each individual path
-//              -   added the context & path to the name of each measurement 
+//              -   added ablity to add tags against each individual path
+//              -   added the source and context as tags for each measurement 
 //              -   improved handling of wildcard '*' for context and path 
-//              -   lots of unnecessary refactoring and tidy-up
+//              -   lots of unecessary refactoring and tidy-up
 
 const { InfluxDB, Point, HttpError } = require('@influxdata/influxdb-client')
 
@@ -26,91 +26,152 @@ module.exports = function (app) {
 
     let options;
     let writeApi;
-    let unsubscribes = []
+    let unsubscribes = [];
+    let tagAsSelf = false;
+    let selfContext;
 
-    let getInfluxPoint = function (context, path, value, timestamp, pathTags) {
+    let getSelfContext = function () {
+
+        // get the current 'vessel.self' context - this seems unnecessarily difficult due to 
+        // limitations in the signalK network and may cause inconsistant results depending on 
+        // whether UUID or MMSI is defined in the Vessel Base Data on the Server -> Settings page
+        const selfUuid = app.getSelfPath('uuid');
+        const selfMmsi = app.getSelfPath('mmsi');
+
+        if (selfUuid != null) { // not null or undefined value
+            return "vessels." + selfUuid;
+        } else if (selfMmsi != null) {
+            return "vessels.urn:mrn:imo:mmsi:" + selfMmsi.toString();
+        }
+        return null;
+    };
+
+    let addInfluxField = function (point, name, value) {
+
+        switch (typeof value) {
+            case 'string':
+                point.stringField(name, value);
+                break;
+
+            case 'number':
+                // note that point.floatField will throw an exception for infinite
+                // values like[Fuel Economy = Speed / Rate], when fuel rate is 0
+                // https://github.com/pbegg/signalk-to-influxdb-v2-buffering/pull/13#discussion_r656656037
+                if (isFinite(value) && !isNaN(value)) {
+                    point.floatField(name, value);
+                }
+                break;
+
+            case 'boolean':
+                point.booleanField(name, value);
+                break;
+
+            case 'object':
+                // then add a field for each property (recursive)
+                for (const property in value) {
+                    addInfluxField(point, property, value[property]);
+                }
+
+            default:
+                // check for undefined or null
+                if (value != null) {
+                    // could be an object, function, whatever... so stringify it...
+                    point.stringField(name, JSON.stringify(value));
+                }
+                break;
+        }
+    }
+
+    let getInfluxPoint = function (source, context, path, value, timestamp, pathTags) {
 
         // The Point object defines the value for a single measurement,
         // and performs internal type and error checking for each value.
         // Note:
         // - the methods .intField and.uintField aren't used as all numeric values are mapped to floatField
         // - any errors with floatField, stringField etc throw an exception thats caught by the calling function
-
-        // Backwards compatibility - don't include context if its not defined (i.e. and the default vessel.self is being used)
-        let measurement = path;
-        if (context) { 
-            let measurement = context + "." + path;
-        }
-
         const point = new Point(path)
             .timestamp(Date.parse(timestamp));
 
-        switch (typeof value) {
-            case 'string':
-                point.stringField('value', value)
-                break;
+        // Add fields
+        addInfluxField(point, 'value', value);
 
-            case 'number':
-                point.floatField('value', value)
-                break;
-
-            case 'boolean':
-                point.booleanField('value', value)
-                break;
-
-            default:
-                // could be an object, function, undefined, whatever... so stringify it
-                point.stringField('value', JSON.stringify(value))
-                break;
-        }
-
-        // Add tags if any have been defined
-        if (pathTags !== undefined) {
+        // Add path tags if any have been defined
+        if (pathTags != null) {
             pathTags.forEach(tag => {
                 point.tag(tag["name"], tag["value"]);
             });
         }
 
+        // Add a tag for the source, in particular so that readings from different 
+        // NMEA2K devices can be filtered - for example its common now for multiple
+        // measurements for 'navigation.position' to be received over NMEA2K from all 
+        // the different squawky devices like GPS, AIS, radios, weather station etc...
+        if (source != null) {
+            point.tag("source", source);
+        }
+
+        // Add a tag with the context so its clear which UUID generated the update 
+        if (context != null && context.length > 0) {
+            point.tag("context", context);
+        }
+
+        // Add a tag {self: true} when the measurement originates from this vessel -
+        // this is reliant on an MMSI or UUID to be set in the Vessel Base Data on 
+        // the Server -> Settings page. Potentially it may be inconsistant depending 
+        // on what UUID / MMSI is set so can be turned off on the plugin settings page, 
+        // and manually added as a tag for individual path(s) if needed
+        if (tagAsSelf === true && context.localeCompare(selfContext) === 0) {
+            point.tag("self", true);
+        }
+
         app.debug(`Sending to InfluxDB-V2: '${JSON.stringify(point)}'`);
         return point
-    }
+    };
 
     let handleUpdates = function (delta, pathOption) {
 
         // iterate through each update received from the subscription manager
         delta.updates.forEach(update => {
-            try {
-                //app.debug(`Received update: '${JSON.stringify(update)}'`);
 
-                //if no u.values then return as there are no values to display
-                if (!update.values) {
-                    return
-                }
+            //if no u.values then return as there are no values to display
+            if (!update.values) {
+                return
+            }
 
-                // iterate through each value received in the update
-                update.values.forEach(val => {
+            // iterate through each value received in the update
+            update.values.forEach(val => {
+                try {
 
-                    // if the value is an object, it may have properties to be unpacked into seperate measurements
+                    // if the value is an object, it may have properties to be unpacked into separate measurements
+                    // note this is not recursive - it only unpacks direct properties at the first layer of the measurement
                     if (typeof val.value === 'object' && pathOption.expand === true) {
-                        for (const prop in val.value) {
-                            const prop_path = val.path + "." + prop;
-                            const prop_val = val.value[prop]
-                            writeApi.writePoint(getInfluxPoint(delta.context, prop_path, prop_val, update.timestamp, pathOption.pathTags));
+                        for (const property in val.value) {
+                            writeApi.writePoint(getInfluxPoint(
+                                update["$source"],
+                                delta.context,
+                                (val.path + "." + property),
+                                val.value[property],
+                                update.timestamp,
+                                pathOption.pathTags));
                         }
                     }
-                    // otherwise just write a point with a single value to InfluxDB
+                    // otherwise just write a point with a single measurement to InfluxDB 
                     else {
-                        writeApi.writePoint(getInfluxPoint(delta.context, val.path, val.value, update.timestamp, pathOption.pathTags));
+                        writeApi.writePoint(getInfluxPoint(
+                            update["$source"],
+                            delta.context,
+                            val.path,
+                            val.value,
+                            update.timestamp,
+                            pathOption.pathTags));
                     }
-                });
-
-            } catch (error) {
-                // log any errors thrown (and skip writing this value to InfluxDB)
-                valuesString = JSON.stringify(values);
-                app.error(`Error: skipping update for path '${path}' because value '${valuesString}' is invalid`)
-            }
+                } catch (error) {
+                    // log any errors thrown (and skip writing this value to InfluxDB)
+                    app.error(`Error: skipping updated value ${JSON.stringify(val)}`)
+                }
+            });
         });
-    }
+    };
 
     let _start = function (opts) {
 
@@ -118,11 +179,15 @@ module.exports = function (app) {
 
         // set variables from plugin options
         options = opts;
-        const url = options["influxHost"]
-        const token = options["influxToken"]
-        const org = options["influxOrg"]
-        const bucket = options["influxBucket"]
-        const writeOptions = options["writeOptions"]
+        selfContext = getSelfContext();
+        const url = options["influxHost"];
+        const token = options["influxToken"];
+        const org = options["influxOrg"];
+        const bucket = options["influxBucket"];
+        const writeOptions = options["writeOptions"];
+        if (writeOptions["tagAsSelf"]) {
+            tagAsSelf = writeOptions["tagAsSelf"];
+        }
 
         // create InfluxDB api object
         writeApi = new InfluxDB({
@@ -135,7 +200,7 @@ module.exports = function (app) {
             writeOptions);
 
         // add default (global) tags, if any have been defined
-        if (options.defaultTags !== undefined) {
+        if (options.defaultTags != null) {
             let defaultTags = {}
             options.defaultTags.forEach(tag => {
                 defaultTags[tag["name"]] = tag["value"];
@@ -149,7 +214,7 @@ module.exports = function (app) {
         options.pathArray.forEach(pathOption => {
 
             // create a subsciption definition
-             localSubscription = {
+            localSubscription = {
                 "context": pathOption.context,
                 "subscribe": [{
                     "path": pathOption.path,
@@ -167,19 +232,19 @@ module.exports = function (app) {
                 },
                 delta => {
                     // add a handler for this update
-                    //app.debug(`Received update: ${JSON.stringify(delta)}`);
+                    app.debug(`Received delta: ${JSON.stringify(delta)}`);
                     handleUpdates(delta, pathOption);
                 }
             );
             app.debug(`Added subscription to: ${JSON.stringify(localSubscription)}`);
         });
-    }
+    };
 
     let _stop = function (options) {
         app.debug(`${plugin.name} Stopped...`)
         unsubscribes.forEach(f => f());
         unsubscribes = [];
-    }
+    };
 
     const plugin = {
         "id": "signalk-to-influxdb-v2-buffer",
@@ -269,12 +334,19 @@ module.exports = function (app) {
                             "title": "Retry Jitter",
                             "description": "a random value of up to retryJitter is added when scheduling next retry",
                             "default": 200
+                        },
+                        "tagAsSelf": {
+                            "type": "boolean",
+                            "title": "Tag vessel measurements as 'self' if applicable",
+                            "description": "tag measurements as {self: true} when from vessel.self - requires an MMSI or UUID to be set in the Vessel Base Data on the Server->Settings page",
+                            "default": false
                         }
                     }
                 },
                 "defaultTags": {
                     "type": "array",
                     "title": "Default Tags",
+                    "description": "default tags added to every measurement sent to InfluxDB",
                     "default": [],
                     "items": {
                         "type": "object",
@@ -309,8 +381,8 @@ module.exports = function (app) {
                             "context": {
                                 "type": "string",
                                 "title": "SignalK context",
-                                "description": "context to record e.g.'vessels.self' for own ship, or 'vessels.*' for all vessels, or '*' for everything",
-                                "default": "vessels.self"
+                                "description": "context to record e.g.'self' for own ship, or 'vessels.*' for all vessels, or '*' for everything",
+                                "default": "self"
                             },
                             "path": {
                                 "type": "string",
@@ -326,7 +398,7 @@ module.exports = function (app) {
                             "expand": {
                                 "type": "boolean",
                                 "title": "Expand properties",
-                                "description": "select to expand the properties of each measurement into separate values where possible e.g. 'navigation.position' would expand into three values 'navigation.position.latitude','navigation.position.longitude' and 'navigation.position.altitude'",
+                                "description": "select to expand the properties of each measurement into separate rows where possible e.g. 'navigation.position' would expand into three rows for 'navigation.position.latitude','navigation.position.longitude' and 'navigation.position.altitude'. If not selected, the measurement is written to InfluxDB as one row where value={JSON}, and fields are added for each property",
                                 "default": false
                             },
                             "pathTags": {
