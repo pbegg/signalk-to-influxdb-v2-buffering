@@ -185,8 +185,8 @@ module.exports = function (app) {
         const org = options["influxOrg"];
         const bucket = options["influxBucket"];
         const writeOptions = options["writeOptions"];
-        if (writeOptions["tagAsSelf"]) {
-            tagAsSelf = writeOptions["tagAsSelf"];
+        if (options["tagAsSelf"]) {
+            tagAsSelf = options["tagAsSelf"];
         }
 
         // create InfluxDB api object
@@ -213,30 +213,36 @@ module.exports = function (app) {
         // individually per path, as there may be different paremeters set for the context
         options.pathArray.forEach(pathOption => {
 
-            // create a subsciption definition
-            localSubscription = {
-                "context": pathOption.context,
-                "subscribe": [{
-                    "path": pathOption.path,
-                    "policy": "instant",
-                    "minPeriod": pathOption.interval
-                }]
-            };
+            // its useful to be able to turn paths on or off, when trying out options for setup of InfluxDB2.0
+            if (pathOption.enabled === true) {
 
-            // subscribe to updates for the context and path
-            app.subscriptionmanager.subscribe(
-                localSubscription,
-                unsubscribes,
-                subscriptionError => {
-                    app.error('Error: ' + subscriptionError);
-                },
-                delta => {
-                    // add a handler for this update
-                    app.debug(`Received delta: ${JSON.stringify(delta)}`);
-                    handleUpdates(delta, pathOption);
-                }
-            );
-            app.debug(`Added subscription to: ${JSON.stringify(localSubscription)}`);
+                // create a subsciption definition
+                localSubscription = {
+                    "context": pathOption.context,
+                    "subscribe": [{
+                        "path": pathOption.path,
+                        "policy": "instant",
+                        "minPeriod": pathOption.interval
+                    }]
+                };
+
+                // subscribe to updates for the context and path
+                app.subscriptionmanager.subscribe(
+                    localSubscription,
+                    unsubscribes,
+                    subscriptionError => {
+                        app.error('Error: ' + subscriptionError);
+                    },
+                    delta => {
+                        // add a handler for this update
+                        // app.debug(`Received delta: ${JSON.stringify(delta)}`);
+                        handleUpdates(delta, pathOption);
+                    }
+                );
+                app.debug(`Added subscription to: ${JSON.stringify(localSubscription)}`);
+            } else {
+                app.error(`Skipping subscription to: ${pathOption.context}/.../${pathOption.path}`);
+            }
         });
     };
 
@@ -334,14 +340,14 @@ module.exports = function (app) {
                             "title": "Retry Jitter",
                             "description": "a random value of up to retryJitter is added when scheduling next retry",
                             "default": 200
-                        },
-                        "tagAsSelf": {
-                            "type": "boolean",
-                            "title": "Tag vessel measurements as 'self' if applicable",
-                            "description": "tag measurements as {self: true} when from vessel.self - requires an MMSI or UUID to be set in the Vessel Base Data on the Server->Settings page",
-                            "default": false
                         }
                     }
+                },
+                "tagAsSelf": {
+                    "type": "boolean",
+                    "title": "Tag vessel measurements as 'self' if applicable",
+                    "description": "tag measurements as {self: true} when from vessel.self - requires an MMSI or UUID to be set in the Vessel Base Data on the Server->Settings page",
+                    "default": false
                 },
                 "defaultTags": {
                     "type": "array",
@@ -378,6 +384,12 @@ module.exports = function (app) {
                             "interval"
                         ],
                         "properties": {
+                            "enabled": {
+                                "type": "boolean",
+                                "title": "Enabled?",
+                                "description": "enable writes to Influxdb2.0 for this path (server restart is required)",
+                                "default": true
+                            },
                             "context": {
                                 "type": "string",
                                 "title": "SignalK context",
@@ -398,8 +410,8 @@ module.exports = function (app) {
                             "expand": {
                                 "type": "boolean",
                                 "title": "Expand properties",
-                                "description": "select to expand the properties of each measurement into separate rows where possible e.g. 'navigation.position' would expand into three rows for 'navigation.position.latitude','navigation.position.longitude' and 'navigation.position.altitude'. If not selected, the measurement is written to InfluxDB as one row where value={JSON}, and fields are added for each property",
-                                "default": false
+                                "description": "select to expand the properties of each measurement into separate rows where possible e.g. 'navigation.position' would expand into three rows for 'navigation.position.latitude','navigation.position.longitude' and 'navigation.position.altitude'. If not selected, the measurement is written to InfluxDB as one row where value={JSON}, and field tags are added for each property. We recommend to turn this on to avoid exceeding cardinality limits in Influx",
+                                "default": true
                             },
                             "pathTags": {
                                 "title": "Path tags",
