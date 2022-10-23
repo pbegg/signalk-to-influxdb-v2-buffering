@@ -16,8 +16,8 @@
 //              -   added ability to expand properties of any measurement (i.e. building on previous ability
 //                  to expand position and attitude, now any measurement with multiple properties can be expanded)
 //              -   added ablity to add tags against each individual path
-//              -   added the source and context as tags for each measurement 
-//              -   improved handling of wildcard '*' for context and path 
+//              -   added the source and context as tags for each measurement
+//              -   improved handling of wildcard '*' for context and path
 //              -   lots of unecessary refactoring and tidy-up
 
 const { InfluxDB, Point, HttpError } = require('@influxdata/influxdb-client')
@@ -46,7 +46,7 @@ module.exports = function (app) {
         return null;
     };
 
-    let addInfluxField = function (point, name, value) {
+    let addInfluxField = function (point, name, value, expand = false) {
 
         switch (typeof value) {
             case 'string':
@@ -67,22 +67,26 @@ module.exports = function (app) {
                 break;
 
             case 'object':
-                // then add a field for each property (recursive)
-                for (const property in value) {
-                    addInfluxField(point, property, value[property]);
+                // if the 'expand' option is selected then add a field for each property 
+                // (n.b.recursive / if any obects are self-referential this will break)
+                if (expand === true) {
+                    for (const property in value) {
+                        addInfluxField(point, property, value[property], true);
+                    }
+                    break;
                 }
-
+                // if 'expand' is false, drop through to send the object as JSON
             default:
-                // check for undefined or null
                 if (value != null) {
                     // could be an object, function, whatever... so stringify it...
+                    // note that stringify also can't cope with self-references 
                     point.stringField(name, JSON.stringify(value));
                 }
                 break;
         }
     }
 
-    let getInfluxPoint = function (source, context, path, value, timestamp, pathTags) {
+    let getInfluxPoint = function (source, context, path, value, timestamp, pathOption) {
 
         // The Point object defines the value for a single measurement,
         // and performs internal type and error checking for each value.
@@ -92,12 +96,12 @@ module.exports = function (app) {
         const point = new Point(path)
             .timestamp(Date.parse(timestamp));
 
-        // Add fields
-        addInfluxField(point, 'value', value);
+        // Add the value of the given field
+        addInfluxField(point, "value", value, (pathOption.expand == null ? false : pathOption.expand));
 
-        // Add path tags if any have been defined
-        if (pathTags != null) {
-            pathTags.forEach(tag => {
+        // Add path-level tags if any have been defined
+        if (pathOption.pathTags != null) {
+            pathOption.pathTags.forEach(tag => {
                 point.tag(tag["name"], tag["value"]);
             });
         }
@@ -141,30 +145,17 @@ module.exports = function (app) {
             // iterate through each value received in the update
             update.values.forEach(val => {
                 try {
-
-                    // if the value is an object, it may have properties to be unpacked into separate measurements
-                    // note this is not recursive - it only unpacks direct properties at the first layer of the measurement
-                    if (typeof val.value === 'object' && pathOption.expand === true) {
-                        for (const property in val.value) {
-                            writeApi.writePoint(getInfluxPoint(
-                                update["$source"],
-                                delta.context,
-                                (val.path + "." + property),
-                                val.value[property],
-                                update.timestamp,
-                                pathOption.pathTags));
-                        }
-                    }
-                    // otherwise just write a point with a single measurement to InfluxDB 
-                    else {
-                        writeApi.writePoint(getInfluxPoint(
-                            update["$source"],
-                            delta.context,
-                            val.path,
-                            val.value,
-                            update.timestamp,
-                            pathOption.pathTags));
-                    }
+                    // if the value is an object and the 'expand' option is set true, each property will be
+                    // unpacked into separate rows in InfluxDB. Note this is recursive - the code will loop to
+                    // unpack properties at all layers (and hypothetically if any obects were self-referential
+                    // this will throw an exception)
+                    writeApi.writePoint(getInfluxPoint(
+                        update["$source"],
+                        delta.context,
+                        val.path,
+                        val.value,
+                        update.timestamp,
+                        pathOption));
                 } catch (error) {
                     // log any errors thrown (and skip writing this value to InfluxDB)
                     app.error(`Error: skipping updated value ${JSON.stringify(val)}`)
@@ -253,9 +244,9 @@ module.exports = function (app) {
     };
 
     const plugin = {
-        "id": "signalk-to-influxdb-v2-buffer",
-        "name": "Signalk To Influxdbv2.0",
-        "schema": {
+        id: "signalk-to-influxdb-v2-buffer",
+        name: "Signalk To Influxdbv2.0",
+        schema: {
             "type": "object",
             "description": "This plugin saves data to an influxdbv2 database, and buffers data without an internet connection (note: a server restart is needed for updated settings to take effect)",
             "required": [
